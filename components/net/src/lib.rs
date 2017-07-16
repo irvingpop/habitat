@@ -11,15 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
 
 #[macro_use]
 extern crate bitflags;
-extern crate fnv;
 extern crate habitat_builder_protocol as protocol;
 extern crate habitat_core as core;
-#[macro_use]
 extern crate hyper;
 extern crate hyper_openssl;
 #[macro_use]
@@ -37,45 +36,55 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate time;
 extern crate unicase;
+extern crate uuid;
 extern crate zmq;
 
+pub mod app;
 pub mod config;
+pub mod conn;
 pub mod error;
-pub mod dispatcher;
 pub mod http;
 pub mod oauth;
 pub mod privilege;
-pub mod routing;
-pub mod server;
-pub mod supervisor;
+pub mod socket;
 
 use std::process::Command;
 
-pub use self::error::{Error, Result};
-pub use self::server::{Application, ServerReg};
-pub use self::supervisor::Supervisor;
+pub use self::error::{ErrCode, NetError, NetResult};
 
-pub fn hostname() -> Result<String> {
-    let output = Command::new("sh")
+pub fn hostname() -> NetResult<String> {
+    let output = match Command::new("sh")
         .arg("-c")
         .arg("hostname | awk '{printf \"%s\", $NF; exit}'")
-        .output()?;
+        .output() {
+        Ok(output) => output,
+        Err(e) => {
+            let err = NetError::new(ErrCode::SYS, "net:hostname:0");
+            warn!("{}, {}", err, e);
+            return Err(err);
+        }
+    };
     match output.status.success() {
         true => {
             debug!(
                 "Hostname address is {}",
                 String::from_utf8_lossy(&output.stdout)
             );
-            let hostname = String::from_utf8(output.stdout).or(Err(Error::Sys))?;
-            Ok(hostname)
+            match String::from_utf8(output.stdout) {
+                Ok(hostname) => Ok(hostname),
+                Err(err) => {
+                    warn!("lookup host, {}", err);
+                    Err(NetError::new(ErrCode::SYS, "net::hostname:1"))
+                }
+            }
         }
         false => {
-            debug!(
+            warn!(
                 "Hostname address command returned: OUT: {} ERR: {}",
                 String::from_utf8_lossy(&output.stdout),
                 String::from_utf8_lossy(&output.stderr)
             );
-            Err(Error::Sys)
+            Err(NetError::new(ErrCode::SYS, "net:hostname:2"))
         }
     }
 }

@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
 
@@ -23,12 +24,14 @@ extern crate protobuf;
 extern crate rand;
 #[macro_use]
 extern crate serde_derive;
+extern crate time;
 extern crate toml;
 extern crate zmq;
 
 pub mod config;
 pub mod error;
 pub mod server;
+mod conn;
 
 pub use self::config::Config;
 pub use self::error::{Error, Result};

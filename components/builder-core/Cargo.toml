@@ -9,6 +9,7 @@ build = "../bldr-build.rs"
 base64 = "*"
 chrono = { version = "*", features = ["serde"] }
 clippy = {version = "*", optional = true}
+habitat-builder-protocol = { path = "../builder-protocol" }
 libarchive = "*"
 log = "*"
 petgraph = "*"
@@ -22,12 +23,5 @@ walkdir = "*"
 [dependencies.habitat_core]
 path = "../core"
 
-[dependencies.habitat_builder_protocol]
-path = "../builder-protocol"
-
 [dependencies.habitat_net]
 path = "../net"
-
-[features]
-default = []
-functional = []
