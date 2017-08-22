@@ -5,6 +5,20 @@ title: Habitat - Define Dependencies and Callbacks
 section
  h1 Define Dependencies and Callbacks
 
+ p If you wanted to build your package with just the Ruby scaffolding, you will be able to; however, [add more words] 
+
+ h2 Build and runtime Dependencies
+
+ p Dependencies are broken up into two main types: build dependencies and run dependencies. Build dependencies are needed while your package builds and run dependencies are those packages needed when your Habitat service is running.
+
+ p The Ruby scaffolding includes a dependency on the <code>core/busybox-static</code> 
+
+ p Declare any build dependencies in `pkg_build_deps` and any run dependencies in `pkg_deps`. You can include version and release information when declaring dependencies if your application is bound to that version.
+
+ p The package `core/glibc` is typically listed as a run dependency and `core/coreutils` as a build dependency; however, you should not take any inference from this. There are no standard dependencies that every package must have. For example, the mytutorialapp package only includes the `core/node` as a run dependency. You should include dependencies that would natively be part of the build or runtime dependencies your application or service would normally depend on.
+
+ p There is a third type of dependencies, transitive dependencies, that are the run dependencies of either the build or run dependencies listed in your plan. You do not need to explicitly declare transitive dependencies, but they are included in the list of files when your package is built. See [Package contents](/docs/reference/package-contents) for more information.
+
  p Concept Definition: Depot
 
  p how to use Depot UI to search for the deps
@@ -21,7 +35,15 @@ section
 
  p Most used callbacks and settings
 
- p Link to callback reference page
+
+ 
+
+ h2 Callbacks
+ p As shown in an example above, there are occasions when you want to override the default behavior of the hab-plan-build script. , but if you need to reference specific packages in the process of building your applications or services, then you need to override the default implementations as in the example below.
+
+ p When overriding any callbacks, you may use any of the variables, settings, or functions in the [Plan syntax guide](/docs/reference/plan-syntax), except for the runtime configuration settings. Those can only be used in runtime hooks once a Habitat service is running.
+
+ p The Plan syntax guide lists the default implementations for [callbacks](/docs/reference/plan-syntax#callbacks)
 
 
 = link_to 'Next: Define Hooks', '/tutorials/build-your-own/define-hooks/', class: 'button cta'
