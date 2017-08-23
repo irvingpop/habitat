@@ -14,7 +14,7 @@
 
 import {Component, Input, OnInit, AfterViewInit} from "@angular/core";
 import {FormControl, FormGroup, FormBuilder, Validators} from "@angular/forms";
-import {GitHubApiClient} from "../GitHubApiClient";
+import {GitHubApiClient, FileResponse, File} from "../GitHubApiClient";
 import {AppStore} from "../AppStore";
 import {addProject, fetchProject, updateProject} from "../actions/index";
 import {RouterLink} from "@angular/router";
@@ -40,8 +40,8 @@ import config from "../config";
       </div>
       <div class="project-fields">
           <div class="plan">
-              <label for="plan">Path to Plan file</label>
-              <small>The location in the repository of the plan.sh that will build this project.</small>
+              <label for="plan">Select a path file</label>
+              <small>Enter a path to a plan.sh file, or select one below:</small>
               <hab-checking-input availableMessage="exists"
                                   displayName="File"
                                   [form]="form"
@@ -53,6 +53,16 @@ import config from "../config";
                                   [pattern]="false"
                                   [value]="planPath">
               </hab-checking-input>
+              <ul class="hab-plans-list">
+                <li *ngFor="let plan of plans">
+                    <a 
+                    class="hab-item-list">
+                        <div class="hab-item-list--title">
+                            <h3>{{plan.path}}</h3>
+                        </div>
+                    </a>
+                </li>
+              </ul>
           </div>
             <div class="submit">
                 <button type="submit" [disabled]="!form.valid">
@@ -67,6 +77,7 @@ import config from "../config";
 export class ProjectInfoComponent implements AfterViewInit, OnInit {
     form: FormGroup;
     doesFileExist: Function;
+    plans: Array<File>;
 
     @Input() project: Object;
     @Input() ownerAndRepo: String;
@@ -89,7 +100,7 @@ export class ProjectInfoComponent implements AfterViewInit, OnInit {
         if (this.project) {
             return this.project["plan_path"];
         } else {
-            return "plan.sh";
+            return "";
         }
     }
 
@@ -145,14 +156,21 @@ export class ProjectInfoComponent implements AfterViewInit, OnInit {
     }
 
     public ngOnInit() {
+        const githubClient = new GitHubApiClient(this.store.getState().gitHub.authToken);
+
         this.form = this.formBuilder.group({
             repo: [this.repo || "", Validators.required]
         });
 
         this.doesFileExist = path => {
-            return new GitHubApiClient(
-                this.store.getState().gitHub.authToken
-            ).doesFileExist(this.repoOwner, this.repo, path);
+            githubClient.doesFileExist(this.repoOwner, this.repo, path);
+        };
+
+        if (this.repoOwner && this.repo) {
+            githubClient
+                .findFileInRepo(this.repoOwner, this.repo, "plan.sh").then((result: FileResponse) => {
+                    this.plans = result.items;
+                });
         };
     }
 }
