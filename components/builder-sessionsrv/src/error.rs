@@ -18,17 +18,17 @@ use std::io;
 use std::result;
 use std::num;
 
-use hab_core;
-use hyper;
-use hab_net;
-use postgres;
-use protobuf;
-use zmq;
 use db;
+use hab_core;
+use hab_net;
+use hyper;
+use postgres;
+use protocol;
 use r2d2;
 
 #[derive(Debug)]
 pub enum Error {
+    App(hab_net::app::error::AppError),
     BadPort(String),
     Db(db::error::Error),
     DbPoolTimeout(r2d2::GetTimeout),
@@ -39,9 +39,8 @@ pub enum Error {
     HTTP(hyper::status::StatusCode),
     HyperError(hyper::error::Error),
     IO(io::Error),
-    NetError(hab_net::Error),
-    Protobuf(protobuf::ProtobufError),
-    Zmq(zmq::Error),
+    NetError(hab_net::NetError),
+    Protocol(protocol::ProtocolError),
     AccountIdFromString(num::ParseIntError),
     AccountCreate(postgres::error::Error),
     AccountGet(postgres::error::Error),
@@ -59,6 +58,7 @@ pub type Result<T> = result::Result<T, Error>;
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let msg = match *self {
+            Error::App(ref e) => format!("{}", e),
             Error::BadPort(ref e) => format!("{} is an invalid port. Valid range 1-65535.", e),
             Error::Db(ref e) => format!("{}", e),
             Error::DbPoolTimeout(ref e) => {
@@ -76,8 +76,7 @@ impl fmt::Display for Error {
             Error::HyperError(ref e) => format!("{}", e),
             Error::IO(ref e) => format!("{}", e),
             Error::NetError(ref e) => format!("{}", e),
-            Error::Protobuf(ref e) => format!("{}", e),
-            Error::Zmq(ref e) => format!("{}", e),
+            Error::Protocol(ref e) => format!("{}", e),
             Error::AccountIdFromString(ref e) => {
                 format!("Cannot convert from string to Account ID, {}", e)
             }
@@ -109,6 +108,7 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
+            Error::App(ref err) => err.description(),
             Error::BadPort(_) => "Received an invalid port or a number outside of the valid range.",
             Error::Db(ref err) => err.description(),
             Error::DbPoolTimeout(ref err) => err.description(),
@@ -120,8 +120,7 @@ impl error::Error for Error {
             Error::HyperError(ref err) => err.description(),
             Error::IO(ref err) => err.description(),
             Error::NetError(ref err) => err.description(),
-            Error::Protobuf(ref err) => err.description(),
-            Error::Zmq(ref err) => err.description(),
+            Error::Protocol(ref err) => err.description(),
             Error::AccountIdFromString(ref err) => err.description(),
             Error::AccountCreate(ref err) => err.description(),
             Error::AccountGet(ref err) => err.description(),
@@ -154,21 +153,21 @@ impl From<hyper::error::Error> for Error {
     }
 }
 
-impl From<hab_net::Error> for Error {
-    fn from(err: hab_net::Error) -> Self {
+impl From<hab_net::app::error::AppError> for Error {
+    fn from(err: hab_net::app::error::AppError) -> Self {
+        Error::App(err)
+    }
+}
+
+impl From<hab_net::NetError> for Error {
+    fn from(err: hab_net::NetError) -> Self {
         Error::NetError(err)
     }
 }
 
-impl From<protobuf::ProtobufError> for Error {
-    fn from(err: protobuf::ProtobufError) -> Self {
-        Error::Protobuf(err)
-    }
-}
-
-impl From<zmq::Error> for Error {
-    fn from(err: zmq::Error) -> Self {
-        Error::Zmq(err)
+impl From<protocol::ProtocolError> for Error {
+    fn from(err: protocol::ProtocolError) -> Self {
+        Error::Protocol(err)
     }
 }
 

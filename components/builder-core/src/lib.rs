@@ -30,9 +30,6 @@ extern crate protobuf;
 #[macro_use]
 extern crate serde_derive;
 
-pub use self::error::Error;
-
-pub mod api;
 pub mod data_structures;
 pub mod error;
 pub mod file_walker;
@@ -43,3 +40,5 @@ pub mod package_graph;
 pub mod target_graph;
 pub mod rdeps;
 pub mod keys;
+
+pub use self::error::Error;

@@ -19,7 +19,6 @@ use std::string;
 
 use base64;
 
-use protocol::net;
 use data_structures;
 
 #[derive(Debug)]
@@ -29,7 +28,6 @@ pub enum Error {
     EncryptError(String),
     FromUtf8Error(string::FromUtf8Error),
     GroupNotComplete,
-    NetError(net::NetError),
     OriginAccessDenied,
     OriginNotFound(String),
     PartialJobGroupPromote(data_structures::PartialJobGroupPromote),
@@ -45,7 +43,6 @@ impl fmt::Display for Error {
             Error::EncryptError(ref e) => format!("{}", e),
             Error::FromUtf8Error(ref e) => format!("{}", e),
             Error::GroupNotComplete => format!("This group is not complete"),
-            Error::NetError(ref e) => format!("{}", e),
             Error::OriginAccessDenied => format!("You don't have access to this origin"),
             Error::OriginNotFound(ref e) => format!("Origin {} was not found", e),
             Error::PartialJobGroupPromote(_) => {
@@ -64,7 +61,6 @@ impl error::Error for Error {
             Error::EncryptError(_) => "Error encrypting integration",
             Error::FromUtf8Error(ref e) => e.description(),
             Error::GroupNotComplete => "Group not complete",
-            Error::NetError(ref e) => e.description(),
             Error::OriginAccessDenied => "Origin access denied",
             Error::OriginNotFound(_) => "Origin not found",
             Error::PartialJobGroupPromote(_) => "Some packages failed to promote",

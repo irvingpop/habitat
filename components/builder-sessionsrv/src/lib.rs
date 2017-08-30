@@ -21,6 +21,8 @@ extern crate habitat_core as hab_core;
 extern crate habitat_net as hab_net;
 extern crate hyper;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log;
 extern crate postgres;
 extern crate protobuf;

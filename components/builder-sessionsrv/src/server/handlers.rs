@@ -14,64 +14,64 @@
 
 use std::env;
 
+use hab_net::app::prelude::*;
+use hab_net::{ErrCode, NetError};
 use hab_net::privilege;
-use hab_net::server::Envelope;
-use protocol::net::{self, ErrCode};
+
+use protocol::net;
 use protocol::sessionsrv as proto;
-use zmq;
 
 use super::ServerState;
 use error::Result;
 
 pub fn account_get_id(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let msg: proto::AccountGetId = req.parse_msg()?;
-    match state.datastore.get_account_by_id(&msg) {
-        Ok(Some(account)) => req.reply_complete(sock, &account)?,
+    let req = msg.parse::<proto::AccountGetId>()?;
+    match state.datastore.get_account_by_id(&req) {
+        Ok(Some(account)) => conn.route_reply(msg, &account)?,
         Ok(None) => {
-            let err = net::err(ErrCode::ENTITY_NOT_FOUND, "ss:account-get-id:0");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "ss:account-get-id:0");
+            conn.route_reply(msg, &*err)?;
         }
         Err(e) => {
-            error!("{}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:account-get-id:1");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account-get-id:1");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
 }
 
 pub fn account_get(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let msg: proto::AccountGet = req.parse_msg()?;
-    match state.datastore.get_account(&msg) {
-        Ok(Some(account)) => req.reply_complete(sock, &account)?,
+    let req = msg.parse::<proto::AccountGet>()?;
+    match state.datastore.get_account(&req) {
+        Ok(Some(account)) => conn.route_reply(msg, &account)?,
         Ok(None) => {
-            let err = net::err(ErrCode::ENTITY_NOT_FOUND, "ss:account-get:0");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::ENTITY_NOT_FOUND, "ss:account-get:0");
+            conn.route_reply(msg, &*err)?;
         }
         Err(e) => {
-            error!("{}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:account-get:1");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account-get:1");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
 }
 
 pub fn session_create(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let mut msg: proto::SessionCreate = req.parse_msg()?;
-
+    let mut req = msg.parse::<proto::SessionCreate>()?;
     let mut is_admin = false;
     let mut is_early_access = false;
     let mut is_build_worker = false;
@@ -81,12 +81,11 @@ pub fn session_create(
         is_early_access = true;
         is_build_worker = true;
     } else {
-        let teams = match state.github.teams(msg.get_token()) {
+        let teams = match state.github.teams(req.get_token()) {
             Ok(teams) => teams,
-            Err(e) => {
-                error!("Cannot retrieve teams from github; failing: {}", e);
-                let err = net::err(ErrCode::DATA_STORE, "ss:session-create:0");
-                req.reply_complete(sock, &err)?;
+            Err(_) => {
+                let err = NetError::new(ErrCode::ACCESS_DENIED, "ss:session-create:0");
+                conn.route_reply(msg, &*err)?;
                 return Ok(());
             }
         };
@@ -121,12 +120,12 @@ pub fn session_create(
     // If only a token was filled in, let's grab the rest of the data from GH. We check email in
     // this case because although email is an optional field in the protobuf message, email is
     // required for access to builder.
-    if msg.get_email().is_empty() {
-        match state.github.user(msg.get_token()) {
+    if req.get_email().is_empty() {
+        match state.github.user(req.get_token()) {
             Ok(user) => {
                 // Select primary email. If no primary email can be found, use any email. If
                 // no email is associated with account return an access denied error.
-                let email = match state.github.emails(msg.get_token()) {
+                let email = match state.github.emails(req.get_token()) {
                     Ok(ref emails) => {
                         emails
                             .iter()
@@ -136,155 +135,142 @@ pub fn session_create(
                             .clone()
                     }
                     Err(_) => {
-                        let err = net::err(ErrCode::ACCESS_DENIED, "ss:session-create:2");
-                        req.reply_complete(sock, &err)?;
+                        let err = NetError::new(ErrCode::ACCESS_DENIED, "ss:session-create:2");
+                        conn.route_reply(msg, &*err)?;
                         return Ok(());
                     }
                 };
 
-                msg.set_extern_id(user.id);
-                msg.set_email(email);
-                msg.set_name(user.login);
-                msg.set_provider(proto::OAuthProvider::GitHub);
+                req.set_extern_id(user.id);
+                req.set_email(email);
+                req.set_name(user.login);
+                req.set_provider(proto::OAuthProvider::GitHub);
             }
-            Err(e) => {
-                error!("Cannot retrieve user from github; failing: {}", e);
-                let err = net::err(ErrCode::DATA_STORE, "ss:session-create:3");
-                req.reply_complete(sock, &err)?;
+            Err(_) => {
+                let err = NetError::new(ErrCode::ACCESS_DENIED, "ss:session-create:3");
+                conn.route_reply(msg, &*err)?;
                 return Ok(());
             }
         }
     }
 
     match state.datastore.find_or_create_account_via_session(
-        &msg,
+        &req,
         is_admin,
         is_early_access,
         is_build_worker,
     ) {
-        Ok(session) => req.reply_complete(sock, &session)?,
+        Ok(session) => conn.route_reply(msg, &session)?,
         Err(e) => {
-            error!("{}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:session-create:1");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:session-create:1");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
 }
 
 pub fn session_get(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let msg: proto::SessionGet = req.parse_msg()?;
-    match state.datastore.get_session(&msg) {
-        Ok(Some(session)) => {
-            req.reply_complete(sock, &session)?;
-        }
+    let req = msg.parse::<proto::SessionGet>()?;
+    match state.datastore.get_session(&req) {
+        Ok(Some(session)) => conn.route_reply(msg, &session)?,
         Ok(None) => {
-            let err = net::err(ErrCode::SESSION_EXPIRED, "ss:auth:4");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::SESSION_EXPIRED, "ss:auth:4");
+            conn.route_reply(msg, &*err)?;
         }
         Err(e) => {
-            error!("{}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:auth:5");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:auth:5");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
 }
 
 pub fn account_origin_invitation_create(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let msg: proto::AccountOriginInvitationCreate = req.parse_msg()?;
-    match state.datastore.create_account_origin_invitation(&msg) {
-        Ok(()) => {
-            req.reply_complete(sock, &net::NetOk::new())?;
-        }
+    let req = msg.parse::<proto::AccountOriginInvitationCreate>()?;
+    match state.datastore.create_account_origin_invitation(&req) {
+        Ok(()) => conn.route_reply(msg, &net::NetOk::new())?,
         Err(e) => {
-            error!("Error creating invitation, {}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:account_origin_invitation_create:1");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account_origin_invitation_create:1");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
 }
 
 pub fn account_origin_invitation_accept(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let msg: proto::AccountOriginInvitationAcceptRequest = req.parse_msg()?;
-    match state.datastore.accept_origin_invitation(&msg) {
-        Ok(()) => {
-            req.reply_complete(sock, &net::NetOk::new())?;
-        }
+    let req = msg.parse::<proto::AccountOriginInvitationAcceptRequest>()?;
+    match state.datastore.accept_origin_invitation(&req) {
+        Ok(()) => conn.route_reply(msg, &net::NetOk::new())?,
         Err(e) => {
-            error!("Error accepting invitation, {}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:account_origin_invitation_accept:1");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account_origin_invitation_accept:1");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
 }
 
 pub fn account_origin_create(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let msg: proto::AccountOriginCreate = req.parse_msg()?;
-    match state.datastore.create_origin(&msg) {
-        Ok(()) => {
-            req.reply_complete(sock, &net::NetOk::new())?;
-        }
+    let req = msg.parse::<proto::AccountOriginCreate>()?;
+    match state.datastore.create_origin(&req) {
+        Ok(()) => conn.route_reply(msg, &net::NetOk::new())?,
         Err(e) => {
-            error!("Error adding origin for account, {}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:account_origin_create:1");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account_origin_create:1");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
 }
 
 pub fn account_origin_list_request(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let msg: proto::AccountOriginListRequest = req.parse_msg()?;
-    match state.datastore.get_origins_by_account(&msg) {
-        Ok(reply) => {
-            req.reply_complete(sock, &reply)?;
-        }
+    let req = msg.parse::<proto::AccountOriginListRequest>()?;
+    match state.datastore.get_origins_by_account(&req) {
+        Ok(reply) => conn.route_reply(msg, &reply)?,
         Err(e) => {
-            error!("Error listing origins for account, {}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:account_origin_list_request:1");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account_origin_list_request:1");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
 }
 
 pub fn account_invitation_list(
-    req: &mut Envelope,
-    sock: &mut zmq::Socket,
+    msg: &mut Message,
+    conn: &mut RouteClient,
     state: &mut ServerState,
 ) -> Result<()> {
-    let msg: proto::AccountInvitationListRequest = req.parse_msg()?;
-    match state.datastore.list_invitations(&msg) {
-        Ok(response) => {
-            req.reply_complete(sock, &response)?;
-        }
+    let req = msg.parse::<proto::AccountInvitationListRequest>()?;
+    match state.datastore.list_invitations(&req) {
+        Ok(response) => conn.route_reply(msg, &response)?,
         Err(e) => {
-            error!("Failed to list account invitations, {}", e);
-            let err = net::err(ErrCode::DATA_STORE, "ss:account_invitation_list:1");
-            req.reply_complete(sock, &err)?;
+            let err = NetError::new(ErrCode::DATA_STORE, "ss:account_invitation_list:1");
+            error!("{}, {}", e, err);
+            conn.route_reply(msg, &*err)?;
         }
     }
     Ok(())
