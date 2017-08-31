@@ -37,6 +37,10 @@ enum ErrCode {
 
   // RouteSrv
   REG_CONFLICT = 2000;
+
+  // Scheduler
+  GROUP_NOT_COMPLETE = 3000;
+  PARTIAL_JOB_GROUP_PROMOTE = 3001;
 }
 
 message Header {

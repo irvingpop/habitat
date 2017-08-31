@@ -17,6 +17,7 @@ base64 = "*"
 bodyparser = "*"
 env_logger = "*"
 habitat-builder-protocol = { path = "../builder-protocol" }
+builder-http-gateway = { path = "../builder-http-gateway" }
 hyper = "*"
 iron = "*"
 log = "*"
@@ -30,6 +31,7 @@ serde_derive = "*"
 serde_json = "*"
 staticfile = "*"
 toml = { version = "*", features = ["serde"], default-features = false }
+typemap = "*"
 unicase = "*"
 
 [dependencies.clap]

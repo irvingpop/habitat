@@ -18,7 +18,7 @@ use std::fmt;
 use std::io;
 use std::ops::Deref;
 
-pub use protocol::net::ErrCode;
+pub use protocol::net::{ErrCode, NetOk};
 use hyper;
 use protobuf::{self, MessageStatic};
 use protocol::{self, net};
@@ -151,7 +151,7 @@ impl From<zmq::Error> for LibError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct NetError(net::NetError);
 
 impl NetError {
@@ -216,6 +216,10 @@ impl error::Error for NetError {
                 "Service registration rejected by RouteSrv. Conflicting registration."
             }
             ErrCode::REMOTE_UNAVAILABLE => "Remote server not respnoding.",
+            ErrCode::GROUP_NOT_COMPLETE => "Scheduler Job Group incomplete.",
+            ErrCode::PARTIAL_JOB_GROUP_PROMOTE => {
+                "Some packages failed to promote to the specified channel."
+            }
         }
     }
 }

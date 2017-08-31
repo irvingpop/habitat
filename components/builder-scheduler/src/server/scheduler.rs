@@ -33,8 +33,6 @@ use error::{Result, Error};
 
 use config::Config;
 use bldr_core;
-use bldr_core::api::{authenticate_with_auth_token, create_channel, promote_job_group_to_channel,
-                     promote_package_to_channel};
 use bldr_core::logger::Logger;
 use hab_core::channel::bldr_channel_name;
 
@@ -161,7 +159,8 @@ impl ScheduleMgr {
             // Take one group from the pending list
             let mut groups = self.datastore.pending_groups(1)?;
 
-            // 0 means there are no pending groups, so we should consume our notice that we have work
+            // 0 means there are no pending groups, so we should consume our notice that we have
+            // work
             if groups.len() == 0 {
                 break;
             }

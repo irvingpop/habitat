@@ -18,35 +18,31 @@
 extern crate base64;
 extern crate bodyparser;
 extern crate builder_core as bldr_core;
-extern crate builder_http_gateway as http_gateway;
 extern crate habitat_builder_protocol as protocol;
-#[macro_use]
-extern crate habitat_core as hab_core;
-extern crate habitat_depot as depot;
+extern crate habitat_core as core;
 extern crate habitat_net as hab_net;
+#[macro_use]
 extern crate hyper;
+#[macro_use]
 extern crate iron;
 #[macro_use]
 extern crate log;
 extern crate mount;
+extern crate num_cpus;
 extern crate params;
 extern crate persistent;
 extern crate protobuf;
-#[macro_use]
 extern crate router;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
+extern crate serde;
 extern crate serde_json;
 extern crate staticfile;
 extern crate toml;
-extern crate typemap;
 extern crate unicase;
 extern crate zmq;
 
+pub mod app;
 pub mod config;
-pub mod error;
-pub mod server;
+pub mod conn;
+pub mod http;
 
-pub use self::config::Config;
-pub use self::error::{Error, Result};
+pub use app::start;

@@ -12,13 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! A module containing the HTTP server and handlers for servicing client requests
+
 pub mod controller;
 pub mod headers;
+pub mod helpers;
 pub mod middleware;
 pub mod rendering;
 
+use hab_net::ErrCode;
 use iron::status::Status;
-use protocol::net::ErrCode;
 
 pub fn net_err_to_http(err: ErrCode) -> Status {
     match err {
@@ -31,7 +34,7 @@ pub fn net_err_to_http(err: ErrCode) -> Status {
         ErrCode::ACCESS_DENIED => Status::Unauthorized,
         ErrCode::SESSION_EXPIRED => Status::Unauthorized,
         ErrCode::ENTITY_CONFLICT => Status::Conflict,
-        ErrCode::ZMQ => Status::ServiceUnavailable,
+        ErrCode::SOCK => Status::ServiceUnavailable,
         ErrCode::DATA_STORE => Status::ServiceUnavailable,
         ErrCode::AUTH_SCOPE => Status::Forbidden,
         ErrCode::WORKSPACE_SETUP => Status::InternalServerError,
@@ -41,5 +44,9 @@ pub fn net_err_to_http(err: ErrCode) -> Status {
         ErrCode::BUILD => Status::InternalServerError,
         ErrCode::POST_PROCESSOR => Status::InternalServerError,
         ErrCode::REG_CONFLICT => Status::InternalServerError,
+        ErrCode::REMOTE_UNAVAILABLE => Status::ServiceUnavailable,
+        ErrCode::SYS => Status::InternalServerError,
+        ErrCode::GROUP_NOT_COMPLETE => Status::Forbidden,
+        ErrCode::PARTIAL_JOB_GROUP_PROMOTE => Status::Forbidden,
     }
 }

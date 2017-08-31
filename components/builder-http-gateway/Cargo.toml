@@ -1,0 +1,34 @@
+[package]
+name = "builder-http-gateway"
+version = "0.0.0"
+authors = ["Jamie Winsor <reset@habitat.sh"]
+description = "A library for implementing Builder HTTP Gateways"
+build = "../bldr-build.rs"
+workspace = "../../"
+
+[dependencies]
+base64 = "*"
+bodyparser = "*"
+env_logger = "*"
+habitat-builder-protocol = { path = "../builder-protocol" }
+habitat_core = { path = "../core" }
+builder_core = { path = "../builder-core" }
+habitat_net = { path = "../net" }
+hyper = "*"
+iron = "*"
+log = "*"
+mount = "*"
+num_cpus = "*"
+params = "*"
+persistent = "*"
+protobuf = "*"
+router = "*"
+serde = "*"
+serde_json = "*"
+staticfile = "*"
+toml = { version = "*", features = ["serde"], default-features = false }
+unicase = "*"
+
+[dependencies.zmq]
+git = "https://github.com/erickt/rust-zmq"
+branch = "release/v0.8"

@@ -12,7 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub use hab_net::{ErrCode, NetError, NetOk, NetResult};
+pub use iron::{status, headers};
+pub use iron::headers::{ContentType, UserAgent};
+pub use iron::prelude::*;
+use protobuf;
+use protocol::Routable;
+
 pub use super::net_err_to_http;
 pub use super::headers::*;
 pub use super::middleware::*;
 pub use super::rendering::{render_json, render_net_error};
+pub use conn::RouteBroker;
+use super::middleware::XRouteClient;
+
+pub fn route_message<M, R>(req: &mut Request, msg: &M) -> NetResult<R>
+where
+    M: Routable,
+    R: protobuf::MessageStatic,
+{
+    req.extensions
+        .get_mut::<XRouteClient>()
+        .unwrap()
+        .route::<M, R>(msg)
+}

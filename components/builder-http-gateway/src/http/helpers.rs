@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::result;
 use std::str::FromStr;
 
-use hab_core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
-use hab_net::routing::Broker;
+use bldr_core::data_structures::PartialJobGroupPromote;
+use core::channel::{STABLE_CHANNEL, UNSTABLE_CHANNEL};
+use hab_net::{ErrCode, NetError, NetOk, NetResult};
+use iron::prelude::*;
 use protocol::originsrv::{CheckOriginAccessRequest, CheckOriginAccessResponse, Origin,
                           OriginChannel, OriginChannelCreate, OriginChannelGet, OriginGet,
                           OriginPackage, OriginPackageChannelListRequest,
@@ -25,21 +26,23 @@ use protocol::originsrv::{CheckOriginAccessRequest, CheckOriginAccessResponse, O
                           OriginPackageGroupPromote, OriginPackageIdent,
                           OriginPackagePlatformListRequest, OriginPackagePlatformListResponse,
                           OriginPackagePromote};
-use protocol::net::{ErrCode, NetError, NetOk};
-use protocol::scheduler::{Group, GroupGet, Project, ProjectState};
+use protocol::scheduler::{Group, GroupGet, GroupState, Project, ProjectState};
 use protocol::sessionsrv::{Session, SessionCreate, SessionGet};
 
-use data_structures::PartialJobGroupPromote;
-
-use error::{Error, Result};
+use super::controller::route_message;
 
 // Get channels for a package
-pub fn channels_for_package_ident(package: &OriginPackageIdent) -> Option<Vec<String>> {
-    let mut conn = Broker::connect().unwrap();
+pub fn channels_for_package_ident(
+    req: &mut Request,
+    package: &OriginPackageIdent,
+) -> Option<Vec<String>> {
     let mut opclr = OriginPackageChannelListRequest::new();
     opclr.set_ident(package.clone());
 
-    match conn.route::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(&opclr) {
+    match route_message::<OriginPackageChannelListRequest, OriginPackageChannelListResponse>(
+        req,
+        &opclr,
+    ) {
         Ok(channels) => {
             let list: Vec<String> = channels
                 .get_channels()
@@ -54,12 +57,15 @@ pub fn channels_for_package_ident(package: &OriginPackageIdent) -> Option<Vec<St
 }
 
 // Get platforms for a package
-pub fn platforms_for_package_ident(package: &OriginPackageIdent) -> Option<Vec<String>> {
-    let mut conn = Broker::connect().unwrap();
+pub fn platforms_for_package_ident(
+    req: &mut Request,
+    package: &OriginPackageIdent,
+) -> Option<Vec<String>> {
     let mut opplr = OriginPackagePlatformListRequest::new();
     opplr.set_ident(package.clone());
 
-    match conn.route::<OriginPackagePlatformListRequest, OriginPackagePlatformListResponse>(
+    match route_message::<OriginPackagePlatformListRequest, OriginPackagePlatformListResponse>(
+        req,
         &opplr,
     ) {
         Ok(p) => Some(p.get_platforms().to_vec()),
@@ -67,107 +73,79 @@ pub fn platforms_for_package_ident(package: &OriginPackageIdent) -> Option<Vec<S
     }
 }
 
-pub fn get_origin<T: ToString>(origin: T) -> result::Result<Option<Origin>, NetError> {
-    let mut conn = Broker::connect().unwrap();
+pub fn get_origin<T>(req: &mut Request, origin: T) -> NetResult<Origin>
+where
+    T: ToString,
+{
     let mut request = OriginGet::new();
     request.set_name(origin.to_string());
-
-    match conn.route::<OriginGet, Origin>(&request) {
-        Ok(origin) => Ok(Some(origin)),
-        Err(err) => {
-            if err.get_code() == ErrCode::ENTITY_NOT_FOUND {
-                Ok(None)
-            } else {
-                Err(err)
-            }
-        }
-    }
+    route_message::<OriginGet, Origin>(req, &request)
 }
 
-pub fn check_origin_access<T: ToString>(
-    account_id: u64,
-    origin: T,
-) -> result::Result<bool, NetError> {
-    let mut conn = Broker::connect().unwrap();
+pub fn check_origin_access<T>(req: &mut Request, account_id: u64, origin: T) -> NetResult<bool>
+where
+    T: ToString,
+{
     let mut request = CheckOriginAccessRequest::new();
     request.set_account_id(account_id);
     request.set_origin_name(origin.to_string());
-    match conn.route::<CheckOriginAccessRequest, CheckOriginAccessResponse>(&request) {
+    match route_message::<CheckOriginAccessRequest, CheckOriginAccessResponse>(req, &request) {
         Ok(response) => Ok(response.get_has_access()),
         Err(err) => Err(err),
     }
 }
 
-pub fn create_channel(origin: &str, channel: &str, session_id: u64) -> Result<OriginChannel> {
-    let origin_id = match get_origin(origin).map_err(Error::NetError)? {
-        Some(o) => o.get_id(),
-        None => {
-            debug!("Origin {} not found!", origin);
-            return Err(Error::OriginNotFound(origin.to_string()));
-        }
-    };
-
-    let mut conn = Broker::connect().unwrap();
+pub fn create_channel(
+    req: &mut Request,
+    origin: &str,
+    channel: &str,
+    session_id: u64,
+) -> NetResult<OriginChannel> {
+    let mut origin = get_origin(req, origin)?;
     let mut request = OriginChannelCreate::new();
-
     request.set_owner_id(session_id);
-    request.set_origin_name(origin.to_string());
-    request.set_origin_id(origin_id);
+    request.set_origin_name(origin.take_name());
+    request.set_origin_id(origin.get_id());
     request.set_name(channel.to_string());
-
-    match conn.route::<OriginChannelCreate, OriginChannel>(&request) {
-        Ok(origin_channel) => Ok(origin_channel),
-        Err(err) => Err(Error::NetError(err)),
-    }
+    route_message::<OriginChannelCreate, OriginChannel>(req, &request)
 }
 
 pub fn promote_package_to_channel(
+    req: &mut Request,
     ident: &OriginPackageIdent,
     channel: &str,
     session_id: u64,
-) -> Result<()> {
-    if !check_origin_access(session_id, ident.get_origin())
-        .map_err(Error::NetError)?
-    {
-        return Err(Error::OriginAccessDenied);
+) -> NetResult<NetOk> {
+    if !check_origin_access(req, session_id, ident.get_origin())? {
+        return Err(NetError::new(
+            ErrCode::ACCESS_DENIED,
+            "core:promote-package-to-channel:0",
+        ));
     }
-
-    let mut conn = Broker::connect().unwrap();
     let mut channel_req = OriginChannelGet::new();
     channel_req.set_origin_name(ident.get_origin().to_string());
     channel_req.set_name(channel.to_string());
 
-    match conn.route::<OriginChannelGet, OriginChannel>(&channel_req) {
-        Ok(origin_channel) => {
-            let mut request = OriginPackageGet::new();
-            request.set_ident(ident.clone());
-            match conn.route::<OriginPackageGet, OriginPackage>(&request) {
-                Ok(package) => {
-                    let mut promote = OriginPackagePromote::new();
-                    promote.set_channel_id(origin_channel.get_id());
-                    promote.set_package_id(package.get_id());
-                    promote.set_ident(ident.clone());
-                    match conn.route::<OriginPackagePromote, NetOk>(&promote) {
-                        Ok(_) => Ok(()),
-                        Err(err) => Err(Error::NetError(err)),
-                    }
-                }
-                Err(err) => Err(Error::NetError(err)),
-            }
-        }
-        Err(err) => Err(Error::NetError(err)),
-    }
+    let origin_channel = route_message::<OriginChannelGet, OriginChannel>(req, &channel_req)?;
+    let mut request = OriginPackageGet::new();
+    request.set_ident(ident.clone());
+    let package = route_message::<OriginPackageGet, OriginPackage>(req, &request)?;
+    let mut promote = OriginPackagePromote::new();
+    promote.set_channel_id(origin_channel.get_id());
+    promote.set_package_id(package.get_id());
+    promote.set_ident(ident.clone());
+    route_message::<OriginPackagePromote, NetOk>(req, &promote)
 }
 
-pub fn promote_job_group_to_channel(group_id: u64, channel: &str, session_id: u64) -> Result<()> {
+pub fn promote_job_group_to_channel(
+    req: &mut Request,
+    group_id: u64,
+    channel: &str,
+    session_id: u64,
+) -> NetResult<NetOk> {
     let mut group_get = GroupGet::new();
     group_get.set_group_id(group_id);
-
-    let mut conn = Broker::connect().unwrap();
-    let group = match conn.route::<GroupGet, Group>(&group_get) {
-        Ok(g) => g,
-        Err(err) => return Err(Error::NetError(err)),
-    };
+    let group = route_message::<GroupGet, Group>(req, &group_get)?;
 
     // This only makes sense if the group is complete. If the group isn't complete, return now and
     // let the user know. Check the completion state by checking the individual project states,
@@ -177,28 +155,31 @@ pub fn promote_job_group_to_channel(group_id: u64, channel: &str, session_id: u6
         p.get_state() == ProjectState::NotStarted || p.get_state() == ProjectState::InProgress
     })
     {
-        return Err(Error::GroupNotComplete);
+        return Err(NetError::new(
+            ErrCode::GROUP_NOT_COMPLETE,
+            "hg:promote-job-group:0",
+        ));
     }
 
     let mut failed_projects = Vec::new();
     let mut origin_map = HashMap::new();
 
-    let channel_fn = |org, chn, ses| {
-        if chn == STABLE_CHANNEL || chn == UNSTABLE_CHANNEL {
-            return Ok(());
-        }
-
-        match create_channel(org, chn, ses) {
-            Ok(_) => Ok(()),
-            Err(Error::NetError(err)) => {
-                match err.get_code() {
-                    ErrCode::ENTITY_CONFLICT => Ok(()),
-                    _ => return Err(Error::NetError(err)),
-                }
-            }
-            Err(e) => return Err(e),
-        }
-    };
+    // JW TODO: refactor
+    // let mut channel_fn = |org, chn, ses| {
+    //     if chn == STABLE_CHANNEL || chn == UNSTABLE_CHANNEL {
+    //         return Ok(());
+    //     }
+    //     match create_channel(req, org, chn, ses) {
+    //         Ok(_) => Ok(()),
+    //         Err(err) => {
+    //             if err.code() == ErrCode::ENTITY_CONFLICT {
+    //                 Ok(())
+    //             } else {
+    //                 Err(err)
+    //             }
+    //         }
+    //     }
+    // };
 
     // We can't assume that every project in the group belongs to the same origin. It's entirely
     // possible that there are multiple origins present within the group. Because of this, there's
@@ -224,98 +205,89 @@ pub fn promote_job_group_to_channel(group_id: u64, channel: &str, session_id: u6
     // one origin at a time. We do "core" first, since it's not possible to do the entire operation
     // atomically. Instead, we prioritize the core origin since it's the most important one.
     if let Some(core_projects) = origin_map.remove("core") {
-        if let Err(e) = channel_fn("core", channel, session_id) {
-            return Err(e);
-        }
+        // JW TODO: refactor
+        // if let Err(e) = channel_fn("core", channel, session_id) {
+        //     return Err(e);
+        // }
 
-        let promote_result = do_group_promotion(channel, core_projects, "core", session_id);
+        let promote_result = do_group_promotion(req, channel, core_projects, "core", session_id);
         if promote_result.is_err() {
             return promote_result;
         }
     }
 
     for (origin, projects) in origin_map.iter() {
-        if let Err(e) = channel_fn(&origin, channel, session_id) {
-            return Err(e);
-        }
+        // JW TODO: refactor
+        // if let Err(e) = channel_fn(&origin, channel, session_id) {
+        //     return Err(e);
+        // }
 
-        let promote_result = do_group_promotion(channel, projects.to_vec(), &origin, session_id);
+        let promote_result =
+            do_group_promotion(req, channel, projects.to_vec(), &origin, session_id);
         if promote_result.is_err() {
             return promote_result;
         }
     }
 
     if failed_projects.is_empty() {
-        Ok(())
+        Ok(NetOk::new())
     } else {
         let pjgp = PartialJobGroupPromote {
             group_id: group.get_id(),
             failed_projects: failed_projects,
         };
-        Err(Error::PartialJobGroupPromote(pjgp))
+        Err(NetError::new(
+            ErrCode::PARTIAL_JOB_GROUP_PROMOTE,
+            "hg:promote-job-group:1",
+        ))
     }
 }
 
-pub fn authenticate_with_auth_token(auth_token: &str) -> Result<u64> {
-    let mut conn = Broker::connect().unwrap();
+pub fn authenticate_with_auth_token(req: &mut Request, auth_token: &str) -> NetResult<u64> {
     let mut request = SessionGet::new();
     request.set_token(auth_token.to_string());
 
-    match conn.route::<SessionGet, Session>(&request) {
+    match route_message::<SessionGet, Session>(req, &request) {
         Ok(session) => Ok(session.get_id()),
         Err(err) => {
-            if err.get_code() == ErrCode::SESSION_EXPIRED {
+            if err.code() == ErrCode::SESSION_EXPIRED {
                 let mut create = SessionCreate::new();
                 create.set_token(auth_token.to_string());
 
-                match conn.route::<SessionCreate, Session>(&create) {
-                    Ok(session) => Ok(session.get_id()),
-                    Err(err) => Err(Error::NetError(err)),
-                }
+                let session = route_message::<SessionCreate, Session>(req, &create)?;
+                Ok(session.get_id())
             } else {
-                Err(Error::NetError(err))
+                Err(err)
             }
         }
     }
 }
 
 fn do_group_promotion(
+    req: &mut Request,
     channel: &str,
     projects: Vec<&Project>,
     origin: &str,
     session_id: u64,
-) -> Result<()> {
-    let mut conn = Broker::connect().unwrap();
+) -> NetResult<NetOk> {
     let mut ocg = OriginChannelGet::new();
     ocg.set_origin_name(origin.to_string());
     ocg.set_name(channel.to_string());
 
     let mut package_ids = Vec::new();
-
-    let channel = match conn.route::<OriginChannelGet, OriginChannel>(&ocg) {
-        Ok(c) => {
-            if !check_origin_access(session_id, origin).map_err(
-                Error::NetError,
-            )?
-            {
-                return Err(Error::OriginAccessDenied);
-            }
-
-            c
-        }
-        Err(err) => return Err(Error::NetError(err)),
-    };
+    let channel = route_message::<OriginChannelGet, OriginChannel>(req, &ocg)?;
+    if !check_origin_access(req, session_id, origin)? {
+        return Err(NetError::new(
+            ErrCode::ACCESS_DENIED,
+            "core:group-promote:0",
+        ));
+    }
 
     for project in projects {
         let opi = OriginPackageIdent::from_str(project.get_ident()).unwrap();
         let mut opg = OriginPackageGet::new();
         opg.set_ident(opi);
-
-        let op = match conn.route::<OriginPackageGet, OriginPackage>(&opg) {
-            Ok(o) => o,
-            Err(err) => return Err(Error::NetError(err)),
-        };
-
+        let op = route_message::<OriginPackageGet, OriginPackage>(req, &opg)?;
         package_ids.push(op.get_id());
     }
 
@@ -324,8 +296,5 @@ fn do_group_promotion(
     opgp.set_package_ids(package_ids);
     opgp.set_origin(origin.to_string());
 
-    match conn.route::<OriginPackageGroupPromote, NetOk>(&opgp) {
-        Ok(_) => Ok(()),
-        Err(err) => Err(Error::NetError(err)),
-    }
+    route_message::<OriginPackageGroupPromote, NetOk>(req, &opgp)
 }

@@ -40,5 +40,3 @@ pub mod package_graph;
 pub mod target_graph;
 pub mod rdeps;
 pub mod keys;
-
-pub use self::error::Error;

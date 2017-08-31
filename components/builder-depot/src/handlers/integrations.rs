@@ -16,13 +16,15 @@ use std::collections::HashMap;
 use iron::status::{self, Status};
 use iron::prelude::*;
 use router::Router;
-use hab_net::http::controller::*;
+use http_gateway::http::controller::*;
 use bodyparser;
 use protocol::originsrv::*;
 use protocol::net::{NetOk, ErrCode};
 use persistent;
 use DepotUtil;
-use bld_core;
+use base64;
+use bldr_core;
+use hab_core::crypto::BoxKeyPair;
 
 use super::super::server::{route_message, check_origin_access};
 
@@ -32,10 +34,26 @@ pub fn encrypt(req: &mut Request, content: &str) -> Result<String, Status> {
     );
     let depot = lock.read().expect("depot read lock is poisoned");
 
-    match bld_core::integrations::encrypt(&depot.config.key_dir, content) {
-        Ok(c) => Ok(c),
-        Err(_) => Err(status::InternalServerError),
-    }
+    let kp = match BoxKeyPair::get_latest_pair_for(
+        bldr_core::keys::BUILDER_KEY_NAME,
+        &depot.config.key_dir,
+    ) {
+        Ok(p) => p,
+        Err(_) => {
+            error!("Can't find bldr key pair at {:?}", depot.config.key_dir);
+            return Err(status::InternalServerError);
+        }
+    };
+
+    let ciphertext = match kp.encrypt(content.as_bytes(), None) {
+        Ok(s) => s,
+        Err(e) => {
+            error!("Unable to encrypt with bldr key pair, err={:?}", e);
+            return Err(status::InternalServerError);
+        }
+    };
+
+    Ok(base64::encode(&ciphertext))
 }
 
 pub fn validate_params(
@@ -43,7 +61,6 @@ pub fn validate_params(
     expected_params: &[&str],
 ) -> Result<HashMap<String, String>, Status> {
     let mut res = HashMap::new();
-
     // Get the expected params
     {
         let params = req.extensions.get::<Router>().unwrap();
@@ -55,23 +72,23 @@ pub fn validate_params(
         for p in expected_params {
             res.insert(p.to_string(), params.find(p).unwrap().to_string());
         }
-    };
-
+    }
     // Check that we have origin access
     {
-        let session = req.extensions.get::<Authenticated>().unwrap();
-        if !check_origin_access(session.get_id(), &res["origin"])
+        let session_id = {
+            req.extensions.get::<Authenticated>().unwrap().get_id()
+        };
+        if !check_origin_access(req, session_id, &res["origin"])
             .map_err(|_| status::InternalServerError)?
         {
             debug!(
                 "Failed origin access check, session: {}, origin: {}",
-                session.get_id(),
+                session_id,
                 &res["origin"]
             );
             return Err(status::Forbidden);
         }
     }
-
     Ok(res)
 }
 
