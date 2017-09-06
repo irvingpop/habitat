@@ -9,8 +9,6 @@ section
 
  p Just like in #{link_to 'Build a Sample App', '/tutorials/sample-app/'}, the quickest way to package your web app is by using scaffolding. This guide focuses on using the Ruby scaffolding to help you create a Habitat package for your application. 
  
- h2 Using Scaffolding
-
  p Scaffolding helps you build and package applications which follow the common patterns and practices for that application type. In other words, the more your application follows the conventions, the more scaffolding helps you. It detects the type of application you've created and will create a Habitat package for that type at build time. For example, if you have a Ruby-on-Rails application, the Ruby scaffolding will parse your Gemfile and make sure the correct build and runtime dependencies are part of your package. It will also detect what version of Rails you're running and set sensible default behaviors for your initialization and run hooks.
 
  p To use scaffolding, navigate to the root of your project repo and run the following <code>hab plan init</code> subcommand. 
@@ -18,7 +16,7 @@ section
  pre
   code.console $ hab plan init -s ruby
 
- p Using <code>hab plan init</code> will result in a new directory located at <code>/path/to/&ltreponame&gt/habitat</code> on your workstation. A <code>plan.sh</code> file will be created and the <code>pkg_name</code> variable in it will be set to &ltreponame&gt. Also, any environment variables that you have previouly set (such as <code>HAB_ORIGIN</code>) will be used to populate the respective <code>pkg_*</code> variables. Because we specified the ruby scaffolding as an argument, your plan.sh will also include a reference to it.
+ p Using <code>hab plan init</code> will result in a new directory located at <code>/path/to/repo/habitat</code> on your workstation. A <code>plan.sh</code> file will be created and the <code>pkg_name</code> variable in it will be set to the name of the parent directory. Also, any environment variables that you have previouly set (such as <code>HAB_ORIGIN</code>) will be used to populate the respective <code>pkg_*</code> variables. Because we specified the ruby scaffolding as an argument, your plan.sh will also include a reference to it.
 
  p See #{link_to 'hab plan init', '/docs/reference/habitat-cli#hab-plan-init'} for more information on how to use this subcommand.
 
@@ -36,6 +34,41 @@ section
 
  blockquote
   p Note: The plan.sh file is the only required file to create a package. Configuration files, runtime hooks, and other source files are optional.
+
+ h2 Extending the default scaffolding behavior in plan.sh
+
+ p The <code>init</code> subcommand and Ruby scaffolding do quite a bit of initialization for you; however, it's important to know how much is handled for you and where you might want to extend and customize the plan.sh file.
+
+ h3 Adding dependencies
+
+ p As part of the detection logic of the Ruby scaffolding, it will parse your Gemfile and if it detects one of the following gems, it will add entries to the <code>pkg_deps</code> array for your plan so that those runtime dependencies are packaged up with your application.
+
+ ul
+  li
+   p sqlite3
+  li
+   p Any PostgreSQL-related gems (see #{link_to 'Connect to Database','/tutorials/build-your-own/connect-database/'} topic for more information)
+  li
+   p nokogiri
+  li
+   p execjs
+  li
+   p webpacker
+ 
+ p If you require additional runtime or buildtime dependencies, you can add them into your plan.sh using the <code>pkg_deps</code> and <code>pkg_build_deps</code> settings, respectively. For example, in the Build a Sample App tutorial, the health_check hook requires the <code>code/curl</code> package so that it can execute a <code>curl</code> command. This package isn't already part of the runtime dependencies added by the scaffolding, so it must be added to the plan.sh manually.
+
+ pre
+  code 
+   |
+    pkg_deps=( core/curl )
+
+ h3 Versioning
+
+ p 
+
+ h3 Defining additional variables
+
+ p [Talk about associative arrays and how to use them in your plan.sh]
 
 = link_to 'Next: Define Dependencies', '/tutorials/build-your-own/define-dependencies-callbacks/', class: 'button cta'
 

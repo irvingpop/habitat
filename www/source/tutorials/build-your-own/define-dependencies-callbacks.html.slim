@@ -13,9 +13,9 @@ section
 
  p The Ruby scaffolding includes a dependency on the <code>core/busybox-static</code> 
 
- p Declare any build dependencies in `pkg_build_deps` and any run dependencies in `pkg_deps`. You can include version and release information when declaring dependencies if your application is bound to that version.
+ p Declare any build dependencies in <code>pkg_build_deps</code> and any run dependencies in <code>pkg_deps</code>. You can include version and release information when declaring dependencies if your application is bound to that version.
 
- p The package `core/glibc` is typically listed as a run dependency and `core/coreutils` as a build dependency; however, you should not take any inference from this. There are no standard dependencies that every package must have. For example, the mytutorialapp package only includes the `core/node` as a run dependency. You should include dependencies that would natively be part of the build or runtime dependencies your application or service would normally depend on.
+ p The package <code>core/glibc</code> is typically listed as a run dependency and <code>core/coreutils</code> as a build dependency; however, you should not take any inference from this. There are no standard dependencies that every package must have. For example, the mytutorialapp package only includes the <code>core/node</code> as a run dependency. You should include dependencies that would natively be part of the build or runtime dependencies your application or service would normally depend on.
 
  p There is a third type of dependencies, transitive dependencies, that are the run dependencies of either the build or run dependencies listed in your plan. You do not need to explicitly declare transitive dependencies, but they are included in the list of files when your package is built. See [Package contents](/docs/reference/package-contents) for more information.
 
@@ -35,13 +35,35 @@ section
 
  p Most used callbacks and settings
 
-
- 
-
  h2 Callbacks
- p As shown in an example above, there are occasions when you want to override the default behavior of the hab-plan-build script. , but if you need to reference specific packages in the process of building your applications or services, then you need to override the default implementations as in the example below.
+ p As shown in an example above, there are occasions when you want to override the default behavior of the hab-plan-build script, but if you need to reference specific packages in the process of building your applications or services, then you need to override the default implementations as in the example below.
 
- p When overriding any callbacks, you may use any of the variables, settings, or functions in the [Plan syntax guide](/docs/reference/plan-syntax), except for the runtime configuration settings. Those can only be used in runtime hooks once a Habitat service is running.
+ p When overriding any callbacks, you may use any of the variables, settings, or functions in the #{link_to 'Plan syntax guide', '/docs/reference/plan-syntax'}, except for the runtime configuration settings. Those can only be used in runtime hooks once a Habitat service is running.
+
+ h3 Using Scaffolding functions
+
+ p Scaffoldings override callbacks in much the same way you can override them in your plan. The default behavior is changed, and in the case of scaffoldings, new functionality is introduced to make sure your web application is packaged appropriately.
+
+ p The following are a set of functions that are called by the Ruby scaffolding. We'll go over what they do, and if you want to use them in your own callback overrides, we'll show you a few examples of how to do that.
+
+ ul
+  li
+   p <b>do_default_prepare()</b>: Sets the gem path where gems will ultimately be installed in your package.
+
+  li
+   p <b>do_default_build()</b>: Cleans out existing gem cache, corrects rubygems shebangs to point to the correct location in your package, performs application and database configuration setup tasks.
+
+  li
+   p <b>do_default_install()</b>: This does quite a bit. It installs your web app, gems, creates binstubs, creates all necessary symlinks, and creates process bins for processes like `rake` and `rails console`. [check on this]
+
+ p If you want to use the default scaffolding functionality, but also want to perform additional setup, configuration, or other logic, you can do so in an override.
+
+ pre
+  code
+   |
+    do_build() {
+     # Do something before 
+    }
 
  p The Plan syntax guide lists the default implementations for [callbacks](/docs/reference/plan-syntax#callbacks)
 

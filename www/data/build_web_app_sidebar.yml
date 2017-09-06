@@ -11,13 +11,13 @@ sidebar_links:
       link: /tutorials/build-your-own/define-dependencies-callbacks/
     - title: Define Hooks
       link: /tutorials/build-your-own/define-hooks/
-    - title: Customize Configuration
-      link: /tutorials/build-your-own/define-config/
+    - title: Build and Test
+      link: /tutorials/build-your-own/build-test/
     - title: Connect to Database
       link: /tutorials/build-your-own/connect-database/
     - title: Connect to Nginx
       link: /tutorials/build-your-own/connect-nginx/
-    - title: Build and Test
-      link: /tutorials/build-your-own/build-test/
+    - title: Customize Configuration
+      link: /tutorials/build-your-own/define-config/
   - title: Next Steps
     link: /tutorials/build-your-own/next-steps/
