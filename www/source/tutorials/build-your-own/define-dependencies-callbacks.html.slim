@@ -5,19 +5,28 @@ title: Habitat - Define Dependencies and Callbacks
 section
  h1 Define Dependencies and Callbacks
 
- p If you wanted to build your package with just the Ruby scaffolding, you will be able to; however, [add more words] 
+ p If you wanted to build your package with just the Ruby scaffolding, you will be able to; however, [add more words]
 
  h2 Build and runtime Dependencies
 
  p Dependencies are broken up into two main types: build dependencies and run dependencies. Build dependencies are needed while your package builds and run dependencies are those packages needed when your Habitat service is running.
 
- p The Ruby scaffolding includes a dependency on the <code>core/busybox-static</code> 
-
  p Declare any build dependencies in <code>pkg_build_deps</code> and any run dependencies in <code>pkg_deps</code>. You can include version and release information when declaring dependencies if your application is bound to that version.
+ 
+ p As part of the detection logic of the Ruby scaffolding, it will parse your Gemfile and if it detects one of the following gems, it will add entries to the <code>pkg_deps</code> array for your plan so that those runtime dependencies are packaged up with your application.
 
- p The package <code>core/glibc</code> is typically listed as a run dependency and <code>core/coreutils</code> as a build dependency; however, you should not take any inference from this. There are no standard dependencies that every package must have. For example, the mytutorialapp package only includes the <code>core/node</code> as a run dependency. You should include dependencies that would natively be part of the build or runtime dependencies your application or service would normally depend on.
+ ul
+  li sqlite3
+  li Any PostgreSQL-related gems (see #{link_to 'Connect to Database','/tutorials/build-your-own/connect-database/'} topic for more information)
+  li nokogiri
+  li execjs
+  li webpacker
+ 
+ p If you require additional runtime or buildtime dependencies, you can add them into your plan.sh using the <code>pkg_deps</code> and <code>pkg_build_deps</code> settings, respectively. For example, in the Build a Sample App tutorial, the health_check hook requires the <code>code/curl</code> package so that it can execute a <code>curl</code> command. This package isn't already part of the runtime dependencies added by the scaffolding, so it must be added to the plan.sh manually.
 
- p There is a third type of dependencies, transitive dependencies, that are the run dependencies of either the build or run dependencies listed in your plan. You do not need to explicitly declare transitive dependencies, but they are included in the list of files when your package is built. See [Package contents](/docs/reference/package-contents) for more information.
+ p You should include dependencies that would natively be part of the build or runtime dependencies your application or service would normally depend on.
+
+ p There is a third type of dependencies, transitive dependencies, that are the run dependencies of either the build or run dependencies listed in your plan. You do not need to explicitly declare transitive dependencies, but they are included in the list of files when your package is built. See #{link_to 'Package contents','/docs/reference/package-contents/'} for more information.
 
  p Concept Definition: Depot
 
@@ -47,14 +56,9 @@ section
  p The following are a set of functions that are called by the Ruby scaffolding. We'll go over what they do, and if you want to use them in your own callback overrides, we'll show you a few examples of how to do that.
 
  ul
-  li
-   p <b>do_default_prepare()</b>: Sets the gem path where gems will ultimately be installed in your package.
-
-  li
-   p <b>do_default_build()</b>: Cleans out existing gem cache, corrects rubygems shebangs to point to the correct location in your package, performs application and database configuration setup tasks.
-
-  li
-   p <b>do_default_install()</b>: This does quite a bit. It installs your web app, gems, creates binstubs, creates all necessary symlinks, and creates process bins for processes like `rake` and `rails console`. [check on this]
+  li <b>do_default_prepare</b>: Sets the gem path where gems will ultimately be installed in your package.
+  li <b>do_default_build</b>: Cleans out existing gem cache, corrects rubygems shebangs to point to the correct location in your package, performs application and database configuration setup tasks.
+  li <b>do_default_install</b>: Installs your web app, gems, creates binstubs, creates all necessary symlinks, and creates a process bin directory for #{link_to 'processes','/tutorials/build-your-own/define-processes/'} like `rake` and `console`.
 
  p If you want to use the default scaffolding functionality, but also want to perform additional setup, configuration, or other logic, you can do so in an override.
 
@@ -62,10 +66,16 @@ section
   code
    |
     do_build() {
-     # Do something before 
+     # Execute business logic before calling the default scaffolding implementation.
+  
+     # This calls the default scaffolding implementation, like
+     # calling `super` in other languages.
+     do_default_build
+     
+     # Execute business logic after calling the default scaffolding implementation.
     }
 
- p The Plan syntax guide lists the default implementations for [callbacks](/docs/reference/plan-syntax#callbacks)
+ p The Plan syntax guide lists the default implementations for #{link_to 'callbacks','/docs/reference/callbacks'}.
 
 
 = link_to 'Next: Define Hooks', '/tutorials/build-your-own/define-hooks/', class: 'button cta'

@@ -30,45 +30,24 @@ section
        ├── hooks
        └── plan.sh
 
- p Now that you have stubbed out your plan, the rest of the steps in this guide will show you how to customize it. Not all steps are required, so feel free to come back to this guide as you iterate on your plan.
-
  blockquote
   p Note: The plan.sh file is the only required file to create a package. Configuration files, runtime hooks, and other source files are optional.
 
- h2 Extending the default scaffolding behavior in plan.sh
+ h2 Versioning
 
- p The <code>init</code> subcommand and Ruby scaffolding do quite a bit of initialization for you; however, it's important to know how much is handled for you and where you might want to extend and customize the plan.sh file.
-
- h3 Adding dependencies
-
- p As part of the detection logic of the Ruby scaffolding, it will parse your Gemfile and if it detects one of the following gems, it will add entries to the <code>pkg_deps</code> array for your plan so that those runtime dependencies are packaged up with your application.
+ p While this isn't specific to scaffolding, every package needs a version number to use as part of its package identification and the <code>hab plan init</code> subcommand does not stub out a version for you. You have two options for adding versioning: 
 
  ul
-  li
-   p sqlite3
-  li
-   p Any PostgreSQL-related gems (see #{link_to 'Connect to Database','/tutorials/build-your-own/connect-database/'} topic for more information)
-  li
-   p nokogiri
-  li
-   p execjs
-  li
-   p webpacker
- 
- p If you require additional runtime or buildtime dependencies, you can add them into your plan.sh using the <code>pkg_deps</code> and <code>pkg_build_deps</code> settings, respectively. For example, in the Build a Sample App tutorial, the health_check hook requires the <code>code/curl</code> package so that it can execute a <code>curl</code> command. This package isn't already part of the runtime dependencies added by the scaffolding, so it must be added to the plan.sh manually.
+  li Explicitly add <code>pkg_version</code> to your plan.sh
+  li Use the <code>pkg_version()</code> and <code>update_pkg_version()</code> helper functions to compute <code>pkg_version</code>
 
- pre
-  code 
-   |
-    pkg_deps=( core/curl )
+ p See #{link_to 'Basic settings','/docs/reference/basic-settings/'} and #{link_to 'Utility functions', '/docs/reference/utility-functions/'} in the reference documentation for more information on these versioning options.
 
- h3 Versioning
+ h3 Defining the Ruby version
 
  p 
 
- h3 Defining additional variables
-
- p [Talk about associative arrays and how to use them in your plan.sh]
+ p Once you have either set or configured the version information for your plan, you can successfully build your web app package. Now that you have stubbed out your plan, the rest of the steps in this guide will show you how to customize it. These customization steps are not required; however, you will likely need to do some customization to ensure the expected behavior of your running Habitat service.
 
 = link_to 'Next: Define Dependencies', '/tutorials/build-your-own/define-dependencies-callbacks/', class: 'button cta'
 

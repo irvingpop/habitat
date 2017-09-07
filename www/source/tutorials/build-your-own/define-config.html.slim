@@ -5,5 +5,22 @@ title: Habitat - Customize Configuration
 section
  h1 Cutomize Configuration
 
+ p To make your app's package useful in more environments and contexts, your package will contain config settings. These settings will be computed at runtime and can be used to dynamically generate app config files, environment variable settings, etc.
+
+ h2 Default Config Settings
+
+ p The following config settings will be created for each app:
+
+ ul
+  li lang: Used to set the $LANG environment variable when the app runs. Defaults to "en_US.UTF-8".
+  li app.port: Used to set the listen port number for your app when it runs. It is consumed to set the $PORT environment variable and to set the value of the exported port configuration. This enforces the port binding contract.
+
+ h2 Specifying Config Settings
+
+ p By default, the detected app type will determine some of the app's config settings to be created. To customize your app's config settings, you would create a default.toml file with your Plan.
+
+ h2 Specifying Config Settings in default.toml
+
+ p You can add more config settings by creating a default.toml file in the same directory containing your plan.sh file. Either directory structure is supported:
 
 = link_to 'Next: Connect to Database', '/tutorials/build-your-own/connect-database/', class: 'button cta'

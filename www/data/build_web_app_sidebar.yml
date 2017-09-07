@@ -17,6 +17,10 @@ sidebar_links:
       link: /tutorials/build-your-own/connect-database/
     - title: Connect to Nginx
       link: /tutorials/build-your-own/connect-nginx/
+    - title: Define Processes
+      link: /tutorials/build-your-own/define-processes/
+    - title: Define Environment Variables
+      link: /tutorials/build-your-own/define-variables/
     - title: Customize Configuration
       link: /tutorials/build-your-own/define-config/
   - title: Next Steps
