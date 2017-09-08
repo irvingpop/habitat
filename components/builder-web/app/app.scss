@@ -60,11 +60,11 @@ $output-bourbon-deprecation-warnings: false !default;
 @import "search/search/search.component";
 @import "project-create-page/project-create-page";
 @import "project-page/project-page";
+@import "project/plan-select/project-plan-select.component";
 @import "projects-page/projects-page";
 @import "side-nav/origin-picker";
 @import "side-nav/side-nav";
 @import "sign-in-page/sign-in-page";
-@import "project-info/project-info";
 
 body {
   -moz-osx-font-smoothing: grayscale;

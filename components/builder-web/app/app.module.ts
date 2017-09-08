@@ -32,7 +32,7 @@ import { HeaderComponent } from "./header/HeaderComponent";
 import { NotificationsComponent } from "./notifications/NotificationsComponent";
 import { ProjectSettingsPageComponent } from "./project-settings-page/ProjectSettingsPageComponent";
 import { ProjectCreatePageComponent } from "./project-create-page/ProjectCreatePageComponent";
-import { ProjectInfoComponent } from "./project-info/ProjectInfoComponent";
+import { ProjectPlanSelectComponent } from "./project/plan-select/ProjectPlanSelect.component";
 import { ProjectPageComponent } from "./project-page/ProjectPageComponent";
 import { ProjectsPageComponent } from "./projects-page/ProjectsPageComponent";
 import { SCMReposPageComponent } from "./scm-repos-page/SCMReposPageComponent";
@@ -72,7 +72,7 @@ import { SharedModule } from "./shared/shared.module";
         HeaderComponent,
         NotificationsComponent,
         ProjectCreatePageComponent,
-        ProjectInfoComponent,
+        ProjectPlanSelectComponent,
         ProjectPageComponent,
         ProjectsPageComponent,
         SCMReposPageComponent,

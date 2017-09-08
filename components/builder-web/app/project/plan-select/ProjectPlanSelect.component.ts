@@ -25,7 +25,7 @@ import config from "../../config";
 @Component({
   selector: "hab-plan-select",
   template: `
-  <form (ngSubmit)="submitProject()">
+  <form (ngSubmit)="onSubmit()">
     <div class="page-body has-sidebar">
       <md-tab-group [selectedIndex]="formIndex" (selectChange)="onTabChange($event)">
         <md-tab id="repoSelect" label="1. Select a GitHub repo">
@@ -74,6 +74,7 @@ export class ProjectPlanSelectComponent implements OnInit {
   owner: string = "";
   plan: string = "";
 
+  @Input() onSubmit: Function;
   @Input() ownerAndRepo: string;
   @Input() project: string;
 
@@ -116,6 +117,8 @@ export class ProjectPlanSelectComponent implements OnInit {
   }
 
   submitProject() {
+    console.log("submit");
+    this.onSubmit("submitted");
     // Change the format to match what the server wants
     // values.github = {
     //     organization: this.repoOwner,
