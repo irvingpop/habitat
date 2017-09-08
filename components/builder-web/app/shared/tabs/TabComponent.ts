@@ -19,24 +19,17 @@ import {TabsComponent} from "./TabsComponent";
     selector: "hab-tab",
     template: `
     <div [hidden]="!active">
-        {{formData}}
         <ng-content></ng-content>
     </div>`
 })
 
 export class TabComponent {
     @Input() tabTitle: string;
-    @Input() formStep: any;
     @Input() public onSelect: Function;
 
     public active: boolean;
-    public disabled: boolean;
 
     constructor(tabs: TabsComponent) {
         tabs.addTab(this);
-    }
-
-    get formData() {
-        return this.formStep ? this.formStep.value : "";
     }
 }

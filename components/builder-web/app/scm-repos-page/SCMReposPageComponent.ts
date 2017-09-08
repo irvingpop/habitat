@@ -59,13 +59,8 @@ export class SCMReposPageComponent implements OnInit {
     fetchGitHubRepos: Function;
     onOrgSelect: Function;
     onRepoSelect: Function;
-    formSteps: Array<Object>;
 
     constructor(private store: AppStore, private router: Router) {
-        this.formSteps = [
-            { target: "/projects/create", name: "this is step 1", current: true },
-            { target: "/", name: "this is step 2", disabled: true }
-        ];
 
         this.fetchGitHubOrgs = () => {
             this.store.dispatch(fetchGitHubOrgs());
