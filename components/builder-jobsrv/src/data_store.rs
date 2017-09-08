@@ -23,9 +23,11 @@ use db::pool::Pool;
 use error::{Result, Error};
 use hab_net::routing::Broker;
 use postgres;
+use postgres::rows::Rows;
 use protobuf;
 use protocol::net::{NetOk, NetError, ErrCode};
 use protocol::{originsrv, jobsrv, scheduler};
+use protocol::originsrv::Pageable;
 use protobuf::ProtobufEnum;
 
 /// DataStore inherints being Send + Sync by virtue of having only one member, the pool itself.
@@ -338,6 +340,19 @@ impl DataStore {
                            WHERE id = p_job_id;
                          $$"#,
         )?;
+        migrator.migrate(
+            "jobsrv",
+            r#"CREATE OR REPLACE FUNCTION get_jobs_for_project_v2(p_project_name TEXT, p_limit bigint, p_offset bigint)
+                         RETURNS SETOF jobs
+                         LANGUAGE SQL STABLE AS $$
+                           SELECT *
+                           FROM jobs
+                           WHERE project_name = p_project_name
+                           ORDER BY created_at DESC
+                           LIMIT p_limit
+                           OFFSET p_offset;
+                         $$"#,
+        )?;
         migrator.finish()?;
 
         self.async.register("sync_jobs".to_string(), sync_jobs);
@@ -416,12 +431,20 @@ impl DataStore {
     ) -> Result<jobsrv::ProjectJobsGetResponse> {
         let conn = self.pool.get_shard(0)?;
         let rows = &conn.query(
-            "SELECT * FROM get_jobs_for_project_v1($1)",
-            &[&(project.get_name())],
+            "SELECT * FROM get_jobs_for_project_v2($1, $2, $3)",
+            &[
+                &(project.get_name()),
+                &project.limit(),
+                &(project.get_start() as i64),
+            ],
         ).map_err(Error::ProjectJobsGet)?;
 
-        let mut response = jobsrv::ProjectJobsGetResponse::new();
         let mut jobs = protobuf::RepeatedField::new();
+        let mut response = jobsrv::ProjectJobsGetResponse::new();
+        response.set_start(project.get_start());
+        response.set_stop(self.last_index(project, &rows));
+        response.set_count(rows.len() as u64);
+
         for row in rows {
             jobs.push(row_to_job(&row)?)
         }
@@ -536,6 +559,14 @@ impl DataStore {
         conn.execute("SELECT mark_as_archived_v1($1)", &[&(job_id as i64)])
             .map_err(Error::JobMarkArchived)?;
         Ok(())
+    }
+
+    fn last_index<P: Pageable>(&self, list_request: &P, rows: &Rows) -> u64 {
+        if rows.len() == 0 {
+            list_request.get_range()[1]
+        } else {
+            list_request.get_range()[0] + (rows.len() as u64) - 1
+        }
     }
 }
 
