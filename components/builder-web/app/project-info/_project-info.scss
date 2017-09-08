@@ -12,31 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {Component, Input, Host} from "@angular/core";
-import {TabsComponent} from "./TabsComponent";
+.hab-radio-plans {
+  margin-top: 15px;
 
-@Component({
-    selector: "hab-tab",
-    template: `
-    <div [hidden]="!active">
-        {{formData}}
-        <ng-content></ng-content>
-    </div>`
-})
-
-export class TabComponent {
-    @Input() tabTitle: string;
-    @Input() formStep: any;
-    @Input() public onSelect: Function;
-
-    public active: boolean;
-    public disabled: boolean;
-
-    constructor(tabs: TabsComponent) {
-        tabs.addTab(this);
-    }
-
-    get formData() {
-        return this.formStep ? this.formStep.value : "";
-    }
+  > .mat-radio-button {
+    display: block;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid $light-gray;
+    width: 100%;
+  }
+  .mat-radio-label-content {
+    text-transform: none;
+  }
 }

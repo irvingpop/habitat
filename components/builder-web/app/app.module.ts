@@ -17,6 +17,7 @@ import { LocationStrategy, HashLocationStrategy } from "@angular/common";
 import { MdButtonModule, MD_PLACEHOLDER_GLOBAL_OPTIONS } from "@angular/material";
 import { BrowserModule, DomSanitizer } from "@angular/platform-browser";
 import { HttpModule } from "@angular/http";
+import { MdIconModule, MdIconRegistry, MdRadioModule, MdTabsModule } from "@angular/material";
 import { routing } from "./routes";
 import { AppStore } from "./AppStore";
 import { AppComponent } from "./AppComponent";
@@ -53,6 +54,9 @@ import { SharedModule } from "./shared/shared.module";
         MdButtonModule,
         OriginModule,
         PackageModule,
+        MdIconModule,
+        MdRadioModule,
+        MdTabsModule,
         ReactiveFormsModule,
         SearchModule,
         SharedModule,

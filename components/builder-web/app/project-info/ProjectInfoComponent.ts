@@ -14,163 +14,157 @@
 
 import {Component, Input, OnInit, AfterViewInit} from "@angular/core";
 import {FormControl, FormGroup, FormBuilder, Validators} from "@angular/forms";
-import {GitHubApiClient, FileResponse, File} from "../GitHubApiClient";
+import {RouterLink} from "@angular/router";
+import {GitHubApiClient} from "../GitHubApiClient";
+import {GitHubFileResponse} from "../github/api/shared/github-file-response.model";
+import {GitHubFile} from "../github/file/shared/github-file.model";
 import {AppStore} from "../AppStore";
 import {addProject, fetchProject, updateProject} from "../actions/index";
-import {RouterLink} from "@angular/router";
 import config from "../config";
 
 @Component({
     selector: "hab-project-info",
     template: `
-    <form [formGroup]="form" (ngSubmit)="submitProject(form.value)" #formValues="ngForm">
-      <div class="scm-repo-fields">
-          <label>GitHub Repository</label>
-          <div *ngIf="repo">
-              <a href="${config["github_web_url"]}/{{ownerAndRepo}}" target="_blank">
-                  {{ownerAndRepo}}
-              </a>
-              <a [routerLink]="['/scm-repos']" href="#">(change)</a>
-          </div>
-          <div *ngIf="!repo">
-              <a [routerLink]="['/scm-repos']" href="#">
-                  (select a GitHub repository)
-              </a>
-          </div>
-      </div>
-      <div class="project-fields">
-          <div class="plan">
-              <label for="plan">Select a path file</label>
-              <small>Enter a path to a plan.sh file, or select one below:</small>
-              <hab-checking-input availableMessage="exists"
-                                  displayName="File"
-                                  [form]="form"
-                                  id="plan"
-                                  [isAvailable]="doesFileExist"
-                                  [maxLength]="false"
-                                  name="plan_path"
-                                  notAvailableMessage="does not exist in repository"
-                                  [pattern]="false"
-                                  [value]="planPath">
-              </hab-checking-input>
-              <ul class="hab-plans-list">
-                <li *ngFor="let plan of plans">
-                    <a 
-                    class="hab-item-list">
-                        <div class="hab-item-list--title">
-                            <h3>{{plan.path}}</h3>
-                        </div>
-                    </a>
-                </li>
-              </ul>
-          </div>
-            <div class="submit">
-                <button type="submit" [disabled]="!form.valid">
-                    Save Project
-                </button>
-            </div>
+    <div class="has-sidebar">
+        <div class="page-body--main">
+            <form (ngSubmit)="submitProject()">
+                <div class="page-body has-sidebar">
+                    <md-tab-group [selectedIndex]="formIndex" (selectChange)="onTabChange($event)">
+                        <md-tab id="repoSelect" label="1. Select a GitHub repo">
+                            <p class="error" *ngIf="errorText">{{errorText}}</p>
+                            <hab-scm-repos [hideTitle]="'true'" [onSelect]="onRepoSelect"></hab-scm-repos>
+                        </md-tab>
+                        <md-tab id="planSelect" label="2. Set path to Habitat plan file" [disabled]="formIndex === 0">
+                            <label for="plan">Select a plan file</label>
+                            <small>If the selected repo contains any plan files, they will be listed below.</small>
+                            <small>When repo changes are detected, the Build Service will create a new .hart from the selected plan.</small>
+                            {{selectedPlan}}
+                            <md-radio-group [(ngModel)]="selectedPlan" class="hab-radio-plans" name="selectedPlan">
+                                <md-radio-button *ngFor="let plan of plans" [value]="plan.path">
+                                    <hab-icon [symbol]="plan.type" class="icon-os" title="OS"></hab-icon> {{plan.path}}
+                                </md-radio-button>
+                            </md-radio-group>
+                            <hr />
+                            <hab-icon [symbol]="docker" class="icon-os" title="Docker"></hab-icon>
+                            <h3>Enable export to Docker Hub</h3>
+                        </md-tab>
+                    </md-tab-group>
+                </div>
+            </form>
         </div>
-    </form>
+        <div class="page-body--sidebar">
+            <h3>Plans and exports</h3>
+            <p>While you can connect many plans to the Build Service, not that the origin and package name in each selected plan file must be <strong>myorigin</strong> and <strong>testapp</strong> respectively.</p>
+            <p>For example, you might have both a plan.sh and a plan.ps1 if this package supports both Linux and Windows platforms, but both will contain the same origin and package name.</p>
+            <p>Finally, you have the option to automatically export your Linux .hart files as Docker containers and publish them to Docker Hub.</p>
+        </div>
+    </div>
     `
+//     <div class="submit">
+//     <button type="submit" [disabled]="!form.valid">
+//         Save Project
+//     </button>
 })
 
-export class ProjectInfoComponent implements AfterViewInit, OnInit {
+export class ProjectInfoComponent implements OnInit {
+    gitHubClient: GitHubApiClient = new GitHubApiClient(this.store.getState().gitHub.authToken);
     form: FormGroup;
-    doesFileExist: Function;
-    plans: Array<File>;
+    formIndex: number = 0;
+    onRepoSelect: Function;
+    plans: Array<GitHubFile>;
+    errorText: string;
 
-    @Input() project: Object;
-    @Input() ownerAndRepo: String;
+    disablePlanSelectTab: boolean = true;
+    repo: string = "";
+    owner: string = "";
+    plan: string = "";
 
-    constructor(private formBuilder: FormBuilder, private store: AppStore) {}
+    @Input() ownerAndRepo: string;
+    @Input() project: string;
 
-    get repoOwner() {
-        return (this.ownerAndRepo || "/").split("/")[0];
-    }
+    constructor(private formBuilder: FormBuilder, private store: AppStore) {
+        this.onRepoSelect = (ownerAndRepo: string) => {
+            [this.owner, this.repo] = ownerAndRepo.split("/");
+            console.log("on repo select");
 
-    get repo() {
-        return (this.ownerAndRepo || "/").split("/")[1];
+            this.gitHubClient
+                .findFileInRepo(this.owner, this.repo, "plan.").then((result: GitHubFileResponse) => {
+                    if (result.total_count === 0) {
+                        this.owner = "";
+                        this.repo = "";
+                        this.errorText = "That repo doesn't appear to have a plan file. Please select another repo.";
+                        return false;
+                    }
+
+                    this.errorText = "";
+                    this.formIndex = 1;
+
+                    this.plans = result.items.map((item) => {
+                        if (item.name.endsWith(".sh")) {
+                            item.type = "linux";
+                        } else if (item.name.endsWith(".ps1")) {
+                            item.type = "windows";
+                        }
+
+                        return item;
+                    });
+                });
+            return false;
+        };
     }
 
     get token() {
         return this.store.getState().gitHub.authToken;
     }
 
-    get planPath() {
-        if (this.project) {
-            return this.project["plan_path"];
-        } else {
-            return "";
-        }
-    }
-
-    get redirectRoute() {
-        return this.store.getState().router.redirectRoute;
+    onTabChange(tab) {
+        this.formIndex = tab.index;
     }
 
     submitProject(values) {
         // Change the format to match what the server wants
-        values.github = {
-            organization: this.repoOwner,
-            repo: this.repo
-        };
+        console.log(values);
+        // values.github = {
+        //     organization: this.repoOwner,
+        //     repo: this.repo
+        // };
 
-        let hint = this.store.getState().projects.hint;
-        values.origin = hint["originName"];
+        // let hint = this.store.getState().projects.hint;
+        // values.origin = hint["originName"];
 
-        delete values.repo;
+        // delete values.repo;
 
-        let rr;
-        let currentPackage = this.store.getState().packages.current;
+        // let rr;
+        // let currentPackage = this.store.getState().packages.current;
 
-        if (this.redirectRoute) {
-            rr = this.redirectRoute;
-        } else if (currentPackage === undefined || currentPackage.ident.origin === undefined) {
-            rr = ["origins", values["origin"]];
-        } else {
-            rr = [
-                "pkgs",
-                currentPackage.ident.origin,
-                currentPackage.ident.name,
-                currentPackage.ident.version,
-                currentPackage.ident.release
-            ];
-        }
+        // if (this.redirectRoute) {
+        //     rr = this.redirectRoute;
+        // } else if (currentPackage === undefined || currentPackage.ident.origin === undefined) {
+        //     rr = ["origins", values["origin"]];
+        // } else {
+        //     rr = [
+        //         "pkgs",
+        //         currentPackage.ident.origin,
+        //         currentPackage.ident.name,
+        //         currentPackage.ident.version,
+        //         currentPackage.ident.release
+        //     ];
+        // }
 
-        if (this.project) {
-            this.store.dispatch(updateProject(this.project["id"], values, this.token, rr));
-        } else {
-            this.store.dispatch(addProject(values, this.token, rr));
-        }
+        // if (this.project) {
+        //     this.store.dispatch(updateProject(this.project["id"], values, this.token, rr));
+        // } else {
+        //     this.store.dispatch(addProject(values, this.token, rr));
+        // }
 
-        return false;
-    }
-
-    ngAfterViewInit() {
-        // Wait a second to set the fields as dirty to do validation on page
-        // load. Doing this later in the lifecycle causes a changed after it was
-        // checked error.
-        setTimeout(() => {
-            this.form.controls["plan_path"].markAsDirty();
-         } , 1000);
+        // return false;
     }
 
     public ngOnInit() {
-        const githubClient = new GitHubApiClient(this.store.getState().gitHub.authToken);
+        // const githubClient = new GitHubApiClient(this.store.getState().gitHub.authToken);
 
         this.form = this.formBuilder.group({
             repo: [this.repo || "", Validators.required]
         });
-
-        this.doesFileExist = path => {
-            githubClient.doesFileExist(this.repoOwner, this.repo, path);
-        };
-
-        if (this.repoOwner && this.repo) {
-            githubClient
-                .findFileInRepo(this.repoOwner, this.repo, "plan.sh").then((result: FileResponse) => {
-                    this.plans = result.items;
-                });
-        };
     }
 }

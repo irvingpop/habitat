@@ -33,6 +33,7 @@ $output-bourbon-deprecation-warnings: false !default;
 @import "shared/icon/icon.component";
 @import "shared/copyable/copyable.component";
 @import "shared/progress-bar/progress-bar.component";
+@import "shared/form-progress/form-progress.component";
 @import "notifications/notifications";
 @import "origin/origin-create-page/origin-create-page.component";
 @import "origin/origin-page/origin-page.component";
@@ -63,6 +64,7 @@ $output-bourbon-deprecation-warnings: false !default;
 @import "side-nav/origin-picker";
 @import "side-nav/side-nav";
 @import "sign-in-page/sign-in-page";
+@import "project-info/project-info";
 
 body {
   -moz-osx-font-smoothing: grayscale;

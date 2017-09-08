@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {Component, OnInit} from "@angular/core";
+import {Component, OnInit, Input} from "@angular/core";
 import {AppStore} from "../AppStore";
 import {fetchGitHubOrgs, fetchGitHubRepos,
         onGitHubOrgSelect, setSelectedGitHubOrg, resetRedirectRoute} from "../actions/index";
@@ -20,9 +20,10 @@ import {requireSignIn} from "../util";
 import {Router} from "@angular/router";
 
 @Component({
+    selector: "hab-scm-repos",
     template: `
     <div class="hab-scm-repos">
-      <div class="page-title">
+      <div class="page-title" *ngIf="!hideTitle">
           <h2>
               GitHub Repositories
               <span *ngIf="gitHub.username">
@@ -51,12 +52,21 @@ import {Router} from "@angular/router";
 })
 
 export class SCMReposPageComponent implements OnInit {
+    @Input() hideTitle: boolean;
+    @Input() onSelect: Function;
+
     fetchGitHubOrgs: Function;
     fetchGitHubRepos: Function;
     onOrgSelect: Function;
     onRepoSelect: Function;
+    formSteps: Array<Object>;
 
     constructor(private store: AppStore, private router: Router) {
+        this.formSteps = [
+            { target: "/projects/create", name: "this is step 1", current: true },
+            { target: "/", name: "this is step 2", disabled: true }
+        ];
+
         this.fetchGitHubOrgs = () => {
             this.store.dispatch(fetchGitHubOrgs());
             return false;
@@ -72,7 +82,12 @@ export class SCMReposPageComponent implements OnInit {
             return false;
         };
 
-        this.onRepoSelect = (repo) => {
+        this.onRepoSelect = (repo, a, b, c) => {
+            if (this.onSelect) {
+                this.onSelect(repo);
+                return false;
+            }
+
             if (typeof this.redirectRoute === "object" && this.redirectRoute.length) {
                 this.router.navigate(this.redirectRoute, {queryParams: {repo: encodeURIComponent(repo)}});
                 this.store.dispatch(resetRedirectRoute());

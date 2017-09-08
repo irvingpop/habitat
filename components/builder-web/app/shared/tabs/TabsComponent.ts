@@ -12,21 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {Component} from "@angular/core";
+import {Component, Input} from "@angular/core";
 import {TabComponent} from "./TabComponent";
 
 @Component({
     selector: "hab-tabs",
     template: `
     <ul class="hab-tabs">
-        <li *ngFor="let tab of tabs"
+        <li *ngFor="let tab of tabs; let i=index;"
             [ngClass]="{ active: tab.active }"
+            [attr.disabled]="tab.formStep && tab.formStep.disabled"
             (click)="selectTab(tab)">{{tab.tabTitle}}</li>
     </ul>
     <ng-content></ng-content>`
 })
 
 export class TabsComponent {
+    @Input() formSteps: Array<Object>;
+
     private tabs;
 
     constructor() {
@@ -39,6 +42,9 @@ export class TabsComponent {
     }
 
     selectTab(tab: TabComponent) {
+        if (tab.formStep && tab.formStep.disabled) {
+            return false;
+        }
         this.tabs.forEach(tab => tab.active = false);
         tab.active = true;
 
