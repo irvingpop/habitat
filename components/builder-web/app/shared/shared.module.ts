@@ -17,6 +17,9 @@ import { PlatformIconComponent } from "./platform-icon/platform-icon.component";
 import { TabsComponent } from "./tabs/TabsComponent";
 import { TabComponent } from "./tabs/TabComponent";
 import { FormProgressComponent } from "./form-progress/form-progress.component";
+import { GitHubRepoPickerComponent } from "./github-repo-picker/GitHubRepoPickerComponent";
+import { SCMReposPageComponent } from "../scm-repos-page/SCMReposPageComponent";
+import { RepoFilterPipe } from "../pipes/repoFilter.pipe";
 
 @NgModule({
   imports: [
@@ -41,7 +44,10 @@ import { FormProgressComponent } from "./form-progress/form-progress.component";
     PlatformIconComponent,
     TabsComponent,
     TabComponent,
-    FormProgressComponent
+    FormProgressComponent,
+    SCMReposPageComponent,
+    GitHubRepoPickerComponent,
+    RepoFilterPipe
   ],
   exports: [
     BreadcrumbsComponent,
@@ -55,7 +61,9 @@ import { FormProgressComponent } from "./form-progress/form-progress.component";
     PlatformIconComponent,
     TabsComponent,
     TabComponent,
-    FormProgressComponent
+    FormProgressComponent,
+    SCMReposPageComponent,
+    GitHubRepoPickerComponent
   ]
 })
 export class SharedModule {

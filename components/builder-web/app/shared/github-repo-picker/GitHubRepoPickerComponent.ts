@@ -14,7 +14,7 @@
 
 import { Component, Input, OnInit } from "@angular/core";
 import { List, Map, OrderedSet } from "immutable";
-import { GitHubRepo } from "../github/repo/shared/github-repo.model";
+import { GitHubRepo } from "../../github/repo/shared/github-repo.model";
 
 @Component({
     selector: "hab-github-repo-picker",

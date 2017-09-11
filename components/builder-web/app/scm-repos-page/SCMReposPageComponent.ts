@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {Component, OnInit, Input} from "@angular/core";
+import {Component, OnInit, Input, Output, EventEmitter} from "@angular/core";
 import {AppStore} from "../AppStore";
 import {fetchGitHubOrgs, fetchGitHubRepos,
         onGitHubOrgSelect, setSelectedGitHubOrg, resetRedirectRoute} from "../actions/index";
@@ -53,12 +53,14 @@ import {Router} from "@angular/router";
 
 export class SCMReposPageComponent implements OnInit {
     @Input() hideTitle: boolean;
-    @Input() onSelect: Function;
+    @Input() noRedirect: boolean;
 
     fetchGitHubOrgs: Function;
     fetchGitHubRepos: Function;
     onOrgSelect: Function;
     onRepoSelect: Function;
+
+    @Output() repoSelected: EventEmitter<string> = new EventEmitter();
 
     constructor(private store: AppStore, private router: Router) {
 
@@ -78,8 +80,9 @@ export class SCMReposPageComponent implements OnInit {
         };
 
         this.onRepoSelect = (repo, a, b, c) => {
-            if (this.onSelect) {
-                this.onSelect(repo);
+            this.repoSelected.emit(repo);
+
+            if (this.noRedirect) {
                 return false;
             }
 

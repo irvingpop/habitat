@@ -26,3 +26,11 @@
     text-transform: none;
   }
 }
+
+.hab-tab-progress {
+  .mat-tab-labels {
+    background: $hab-blue;
+    padding: 5px 15px;
+    border-radius: 2px;
+  }
+}

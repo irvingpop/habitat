@@ -1,7 +1,7 @@
 import { NgModule } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { RouterModule } from "@angular/router";
-import { MdTabsModule, MdButtonModule } from "@angular/material";
+import { MdTabsModule, MdButtonModule, MdRadioModule } from "@angular/material";
 import { BuildDetailComponent } from "./build-detail/build-detail.component";
 import { BuildListComponent } from "./build-list/build-list.component";
 import { BuildNoticeComponent } from "./build-notice/build-notice.component";
@@ -16,6 +16,8 @@ import { PackageReadmeComponent } from "./package-readme/package-readme.componen
 import { PackageReleaseComponent } from "./package-release/package-release.component";
 import { PackageSidebarComponent } from "./package-sidebar/package-sidebar.component";
 import { PackageVersionsComponent } from "./package-versions/package-versions.component";
+import { PackagePlanSelectComponent } from "./package-plan-select/package-plan-select.component";
+
 import { SharedModule } from "../shared/shared.module";
 import { PackageRoutingModule } from "./package-routing.module";
 
@@ -26,6 +28,7 @@ import { PackageRoutingModule } from "./package-routing.module";
     RouterModule,
     MdTabsModule,
     MdButtonModule,
+    MdRadioModule,
     SharedModule
   ],
   declarations: [
@@ -42,7 +45,8 @@ import { PackageRoutingModule } from "./package-routing.module";
     PackageReleaseComponent,
     PackageSidebarComponent,
     PackageSettingsComponent,
-    PackageVersionsComponent
+    PackageVersionsComponent,
+    PackagePlanSelectComponent
   ]
 })
 export class PackageModule {}

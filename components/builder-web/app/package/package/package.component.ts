@@ -51,7 +51,8 @@ export class PackageComponent implements OnInit, OnDestroy {
         return [
             "latest",
             "versions",
-            "builds"
+            "builds",
+            "settings"
         ].indexOf(feature) >= 0;
     }
 
