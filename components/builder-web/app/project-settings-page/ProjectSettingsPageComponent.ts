@@ -34,7 +34,6 @@ import {Record} from "immutable";
           </p>
       </div>
       <div class="page-body">
-        <hab-plan-select [onSubmit]="handleSubmit"></hab-plan-select>
       </div>
     </div>
     `

@@ -15,7 +15,6 @@
 import { Component, Input, OnInit, AfterViewInit } from "@angular/core";
 import { FormControl, FormGroup, FormBuilder, Validators } from "@angular/forms";
 import { RouterLink } from "@angular/router";
-import { MdRadioModule } from "@angular/material";
 import { GitHubApiClient } from "../../GitHubApiClient";
 import { GitHubFileResponse } from "../../github/api/shared/github-file-response.model";
 import { GitHubFile } from "../../github/file/shared/github-file.model";
@@ -51,7 +50,7 @@ export class PackagePlanSelectComponent implements OnInit {
       [this.owner, this.repo] = ownerAndRepo.split("/");
 
       this.gitHubClient.findFileInRepo(this.owner, this.repo, "plan.")
-        .then(this.handleGitHubFileResponse);
+        .then(this.handleGitHubFileResponse.bind(this));
 
       return false;
     };

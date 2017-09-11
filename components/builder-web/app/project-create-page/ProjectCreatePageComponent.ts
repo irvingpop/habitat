@@ -28,7 +28,6 @@ import {Subscription} from "rxjs/Subscription";
           </p>
       </div>
       <div class="page-body">
-        <hab-plan-select [onSubmit]="handleSubmit"></hab-plan-select>
       </div>
     </div>`
 })

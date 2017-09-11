@@ -1,6 +1,7 @@
 import { NgModule } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { RouterModule } from "@angular/router";
+import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { MdTabsModule, MdButtonModule, MdRadioModule } from "@angular/material";
 import { BuildDetailComponent } from "./build-detail/build-detail.component";
 import { BuildListComponent } from "./build-list/build-list.component";
@@ -29,7 +30,9 @@ import { PackageRoutingModule } from "./package-routing.module";
     MdTabsModule,
     MdButtonModule,
     MdRadioModule,
-    SharedModule
+    SharedModule,
+    FormsModule,
+    ReactiveFormsModule
   ],
   declarations: [
     BuildDetailComponent,
