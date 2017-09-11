@@ -1,0 +1,55 @@
+FROM alpine:3.6
+MAINTAINER The Habitat Maintainers <humans@habitat.sh>
+
+ENV HAB_DEPOT_CHANNEL unstable
+
+COPY terraform/scripts/install_base_packages.sh /tmp/install_base_packages.sh
+COPY terraform/scripts/foundation.sh /tmp/foundation.sh
+
+# add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
+RUN addgroup -S hab && adduser -S -G hab hab
+
+RUN apk update
+RUN apk add bash
+RUN apk add curl
+RUN apk add perl-utils
+
+RUN /tmp/install_base_packages.sh
+RUN rm -Rf hab_builder_bootstrap* hab_bootstrap* LATEST 0
+
+RUN hab pkg install core/builder-datastore \
+  core/builder-api \
+  core/builder-api-proxy \
+  core/builder-admin \
+  core/builder-admin-proxy \
+  core/builder-jobsrv \
+  core/builder-originsrv \
+  core/builder-router \
+  core/builder-scheduler \
+  core/builder-sessionsrv \
+  core/builder-worker
+
+RUN mkdir -p /hab/svc/builder-datastore
+COPY support/builder/datastore.toml /hab/svc/builder-datastore/user.toml
+COPY support/builder/init-datastore.sh /tmp/init-datastore.sh
+RUN /tmp/init-datastore.sh
+
+COPY support/builder/config.sh /tmp/config.sh
+RUN /tmp/config.sh
+
+RUN hab svc load core/builder-datastore; \
+  hab svc load core/builder-router; \
+  hab svc load core/builder-api-proxy --bind http:builder-api.default; \
+  hab svc load core/builder-api --bind router:builder-router.default; \
+  hab svc load core/builder-admin --bind router:builder-router.default; \
+  hab svc load core/builder-admin-proxy --bind http:builder-admin.default; \
+  hab svc load core/builder-jobsrv --bind router:builder-router.default --bind datastore:builder-datastore.default; \
+  hab svc load core/builder-originsrv --bind router:builder-router.default --bind datastore:builder-datastore.default; \
+  hab svc load core/builder-scheduler --bind router:builder-router.default --bind datastore:builder-datastore.default --bind depot:builder-api.default; \
+  hab svc load core/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default; \
+  hab svc load core/builder-worker --bind jobsrv:builder-jobsrv.default --bind depot:builder-api.default
+
+VOLUME /hab
+EXPOSE 80 443 9631 9638
+ENTRYPOINT ["hab"]
+CMD ["run"]
